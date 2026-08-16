@@ -1,0 +1,62 @@
+# Open Data Contract Standard (ODCS) v3.x — uts_silver.person (HERM person)
+# DQX genera reglas de calidad automáticamente:
+#   DQGenerator.generate_rules_from_contract(contract_file="person.odcs.yaml")
+# Las restricciones (required/unique/pattern/enum/min-max) → reglas DQX (is_not_null,
+# is_unique, regex_match, is_in_list, is_in_range) aplicadas en el pipeline silver.
+kind: DataContract
+apiVersion: v3.0.2
+id: urn:datacontract:uts:silver_person
+name: UTS Silver Person
+version: 1.0.0
+status: active
+description:
+  purpose: "Persona canónica (HERM) reconciliada de PeopleSoft (SIS) y Moodle (LMS)."
+
+schema:
+  - name: person
+    physicalType: table
+    description: "Registro de estudiante canónico. Base del MDM student_360."
+    properties:
+      - name: student_id
+        logicalType: string
+        physicalType: string
+        required: true
+        unique: true
+        description: "Identificador maestro del estudiante (emplid PeopleSoft)."
+      - name: nombre
+        logicalType: string
+        physicalType: string
+        required: true
+        description: "Nombre completo. PII."
+      - name: documento
+        logicalType: string
+        physicalType: string
+        required: true
+        description: "Documento de identidad. PII sensible."
+      - name: email
+        logicalType: string
+        physicalType: string
+        required: true
+        description: "Correo institucional (clave de reconciliación MDM). PII."
+        logicalTypeOptions:
+          pattern: '^[^@]+@[^@]+\.[^@]+$'
+      - name: anio_nac
+        logicalType: integer
+        physicalType: int
+        required: false
+        description: "Año de nacimiento."
+        logicalTypeOptions:
+          minimum: 1940
+          maximum: 2012
+      - name: genero
+        logicalType: string
+        physicalType: string
+        required: false
+      - name: pais
+        logicalType: string
+        physicalType: string
+        required: true
+        description: "País del campus (8 países LATAM)."
+        logicalTypeOptions:
+          # 8 países reales del universo UTS (antes el check a mano sólo tenía 5 → 29% cuarentena falsa)
+          enum: [PE, CL, CO, EC, BO, MX, BR, AR, UY]
