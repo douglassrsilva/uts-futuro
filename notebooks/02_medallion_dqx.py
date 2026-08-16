@@ -122,7 +122,10 @@ PERSON_FALLBACK = [
     {"name": "student_present", "criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "student_id"}}},
     {"name": "email_present", "criticality": "error", "check": {"function": "is_not_null", "arguments": {"column": "email"}}},
     {"name": "email_formato", "criticality": "warn", "check": {"function": "is_valid_email", "arguments": {"column": "email"}}},
-    {"name": "pais_valido", "criticality": "warn", "check": {"function": "is_in_list", "arguments": {"column": "pais", "allowed": ["PE","CL","CO","EC","BO","MX","BR","AR","UY"]}}},
+    # país en la lista de 8 países LATAM. Usamos `sql_expression` (portable entre versiones de DQX)
+    # en vez de `is_in_list`: en DQX 0.16.x el deserializador de metadata resuelve los valores de
+    # `allowed` como NOMBRES DE COLUMNA (['PE',...] → error "column PE cannot be resolved").
+    {"name": "pais_valido", "criticality": "warn", "check": {"function": "sql_expression", "arguments": {"expression": "pais IN ('PE','CL','CO','EC','BO','MX','BR','AR','UY')", "msg": "país fuera de la lista LATAM", "name": "pais_valido"}}},
 ]
 RESULT_FALLBACK = [
     {"name": "nota_en_rango", "criticality": "error", "check": {"function": "is_in_range", "arguments": {"column": "nota", "min_limit": 0.0, "max_limit": 20.0}}},

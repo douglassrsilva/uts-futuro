@@ -23,6 +23,8 @@
 
 from pyspark.sql import functions as F
 
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## 1. El problema: dos identidades del mismo alumno
 
