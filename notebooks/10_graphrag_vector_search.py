@@ -18,6 +18,11 @@
 
 # COMMAND ----------
 
+# MAGIC %pip install databricks-vectorsearch
+# MAGIC %restart_python
+
+# COMMAND ----------
+
 # MAGIC %run ../_comun
 
 # COMMAND ----------
@@ -25,6 +30,8 @@
 from databricks.sdk import WorkspaceClient
 w = WorkspaceClient()
 SCH_ML = f"{PREFIX}_ml"
+
+# COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 1. Crear el endpoint y el índice de Vector Search
@@ -35,30 +42,40 @@ SCH_ML = f"{PREFIX}_ml"
 
 # COMMAND ----------
 
-VS_ENDPOINT = dbutils.widgets.get("warehouse_id") and "uts-vs" or "uts-vs"  # nombre del endpoint VS
-VS_ENDPOINT = "uts-vs"
+VS_ENDPOINT = "uts-vs"                                  # nombre del endpoint Vector Search
 INDEX = f"{GOLD}.knowledge_chunks_idx"
-EMBED_ENDPOINT = "databricks-qwen3-embedding-0-6b"  # Foundation Model de embeddings multilingüe
+EMBED_ENDPOINT = "databricks-qwen3-embedding-0-6b"      # Foundation Model de embeddings multilingüe
+
+# Un índice DELTA_SYNC EXIGE que la tabla fuente tenga Change Data Feed habilitado. El notebook 02
+# ya lo activa; lo reforzamos aquí (idempotente) por si se corriera contra una tabla preexistente.
+spark.sql(f"ALTER TABLE {GOLD}.knowledge_chunks SET TBLPROPERTIES (delta.enableChangeDataFeed = true)")
 
 vs_disponible = True
 try:
     from databricks.vector_search.client import VectorSearchClient
     vsc = VectorSearchClient(disable_notice=True)
-    # endpoint (idempotente)
+    # endpoint (idempotente): sólo lo creamos si no existe
     try:
-        vsc.create_endpoint_and_wait(name=VS_ENDPOINT, endpoint_type="STANDARD", verbose=False)
+        existentes = [e.get("name") for e in vsc.list_endpoints().get("endpoints", [])]
+        if VS_ENDPOINT not in existentes:
+            vsc.create_endpoint_and_wait(name=VS_ENDPOINT, endpoint_type="STANDARD", verbose=False)
+        print(f"  endpoint {VS_ENDPOINT}: listo")
     except Exception as e:
-        print(f"  endpoint {VS_ENDPOINT}: {str(e)[:80]} (probablemente ya existe)")
-    # índice DELTA_SYNC
+        print(f"  endpoint {VS_ENDPOINT}: {str(e)[:100]}")
+    # índice DELTA_SYNC (idempotente): si ya existe, lo reutilizamos
     try:
-        vsc.create_delta_sync_index_and_wait(
-            endpoint_name=VS_ENDPOINT, index_name=INDEX,
-            source_table_name=f"{GOLD}.knowledge_chunks",
-            primary_key="chunk_id", pipeline_type="TRIGGERED",
-            embedding_source_column="contenido", embedding_model_endpoint_name=EMBED_ENDPOINT)
-        print(f"✓ Índice VS creado y sincronizado: {INDEX}")
+        idx_existentes = [i.get("name") for i in vsc.list_indexes(VS_ENDPOINT).get("vector_indexes", [])]
+        if INDEX not in idx_existentes:
+            vsc.create_delta_sync_index_and_wait(
+                endpoint_name=VS_ENDPOINT, index_name=INDEX,
+                source_table_name=f"{GOLD}.knowledge_chunks",
+                primary_key="chunk_id", pipeline_type="TRIGGERED",
+                embedding_source_column="contenido", embedding_model_endpoint_name=EMBED_ENDPOINT)
+        print(f"✓ Índice VS listo y sincronizado: {INDEX}")
     except Exception as e:
-        print(f"  índice {INDEX}: {str(e)[:120]} (puede ya existir; continuamos)")
+        vs_disponible = False
+        print(f"  índice {INDEX} no disponible: {str(e)[:200]}")
+        print("  → El motor GraphRAG usará el fallback por LIKE. El flujo se demuestra igual.")
 except Exception as e:
     vs_disponible = False
     print(f"  (Vector Search no disponible en este workspace: {str(e)[:120]})")

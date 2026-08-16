@@ -380,8 +380,11 @@ faqs = [
 ]
 spark.createDataFrame(faqs, "chunk_id string, titulo string, contenido string") \
     .write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{GOLD}.knowledge_chunks")
+# Vector Search (notebook 10) crea un índice DELTA_SYNC sobre esta tabla, y eso EXIGE que la
+# fuente tenga Change Data Feed habilitado. Lo activamos aquí para que el índice pueda crearse.
+spark.sql(f"ALTER TABLE {GOLD}.knowledge_chunks SET TBLPROPERTIES (delta.enableChangeDataFeed = true)")
 
-print("✓ Gold: essay_submissions/rubric, kg_nodes/kg_edges, knowledge_chunks")
+print("✓ Gold: essay_submissions/rubric, kg_nodes/kg_edges, knowledge_chunks (CDF on)")
 
 # COMMAND ----------
 
