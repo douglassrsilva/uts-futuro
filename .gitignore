@@ -1,4 +1,15 @@
-__pycache__/
-*.pyc
-.DS_Store
-.databricks/
+# Allowlist: este repo só versiona workshop/ e app/ (o resto do brick fica fora).
+/*
+!/.gitignore
+!/README.md
+!/workshop/
+!/app/
+# dentro do app: nunca versionar dependências nem build
+app/frontend/node_modules/
+app/frontend/dist/
+app/**/__pycache__/
+**/*.pyc
+**/.DS_Store
+app/_deferred/
+tsbuildinfo/
+app/frontend/tsconfig.tsbuildinfo
