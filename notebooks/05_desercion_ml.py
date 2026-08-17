@@ -114,6 +114,10 @@ out["riesgo_nivel"] = pd.cut(proba, [-0.01, 0.33, 0.66, 1.01], labels=["bajo", "
 out["factor_principal"] = [LABELS[FEATS[int(np.argmax(np.abs(contribs[k])))]] for k in range(len(out))]
 out["shap_json"] = [json.dumps(top_contribs(contribs[k]), ensure_ascii=False) for k in range(len(out))]
 out["shap_metodo"] = "shap" if shap_ok else "importancia_global"
+# semestre en que el riesgo se concentra (heurística sobre el semestre actual): el riesgo tiende
+# al 1er año y a la transición 4º→5º (cambio al ciclo especializado). El app lo usa en la ficha 360.
+sem = pdf["semestre"] if "semestre" in pdf.columns else pd.Series([1] * len(out))
+out["semestre_critico"] = [int(min(10, max(1, s if p > 0.5 else (2 if s <= 2 else 5)))) for s, p in zip(sem, proba)]
 
 spark.createDataFrame(out).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{GOLD}.dropout_scores")
 n_alto = (out["riesgo_nivel"] == "alto").sum()

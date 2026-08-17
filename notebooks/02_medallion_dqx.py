@@ -307,6 +307,14 @@ cap = spark.table(f"{BRONZE}.bronze_campus_capacity").select("campus_id", "salas
     "round(least(100, (estudiantes / alumnos_por_sala) / salas_capacidad * 100), 1) AS ocupacion_pct")
 ).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{GOLD}.campus_occupancy")
 
+# --- student_journey (timeline de eventos Caliper del alumno) ---
+# Alimenta la ficha 360 del app (últimos eventos del estudiante en el LMS).
+_ce = spark.table(f"{SILVER}.caliper_event")
+_s = spark.table(f"{GOLD}.student_360").select("student_master_id", "student_moodle_id")
+_ce.join(_s, "student_moodle_id").selectExpr(
+    "student_master_id", "'evento_lms' AS tipo", "action AS detalle", "course_sourced_id", "event_time AS ts"
+).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{GOLD}.student_journey")
+
 # --- copias directas a gold (data products de referencia) ---
 for src, dst in [("bronze_campus_capacity", "campus_capacity"),
                  ("bronze_matricula_historica", "matricula_historica"),
@@ -427,7 +435,7 @@ print("✓ Gold: essay_submissions/rubric, kg_nodes/kg_edges, knowledge_chunks (
 tablas_silver = {r.tableName for r in spark.sql(f"SHOW TABLES IN {SILVER}").collect()}
 tablas_gold = {r.tableName for r in spark.sql(f"SHOW TABLES IN {GOLD}").collect()}
 assert {"person", "result", "quarantine_person", "quarantine_result"} <= tablas_silver, "faltan tablas silver"
-assert {"student_360", "dropout_features", "campus_occupancy", "kg_nodes", "kg_edges", "knowledge_chunks"} <= tablas_gold, "faltan tablas gold"
+assert {"student_360", "dropout_features", "campus_occupancy", "kg_nodes", "kg_edges", "knowledge_chunks", "student_journey"} <= tablas_gold, "faltan tablas gold"
 n360 = spark.table(f"{GOLD}.student_360").count()
 print(f"✓ Silver: {len(tablas_silver)} tablas · Gold: {len(tablas_gold)} tablas")
 print(f"✓ student_360: {n360} estudiantes")

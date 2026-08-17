@@ -100,7 +100,11 @@ def elegir(*preferencias, defecto=None):
 # Roles del proyecto → mejor modelo disponible (preferencia → fallback)
 M_CHAT  = elegir("gpt-oss-120b", "qwen3-next-80b-a3b-instruct", "meta-llama-3-3-70b-instruct", "gpt-oss-20b")
 M_STRONG = elegir("claude-sonnet-5", "claude-sonnet-4-6", "claude-opus-4-6", "gpt-oss-120b")
-M_AGENT = elegir("glm-5-2", "claude-sonnet-5", "gpt-oss-120b", "meta-llama-3-3-70b-instruct")
+# Agente (copiloto tool-calling): el app lo consume con el SDK de OpenAI (necesita `tools`).
+# Preferimos modelos open-source (gpt-oss/llama/glm) que funcionan bien por esa vía; evitamos
+# poner Claude como 1ª opción del AGENTE porque el SDK deriva un model-id estilo Bedrock
+# (us.anthropic.claude-*) que el Gateway rechaza. (chat/aes SÍ usan Claude, pero por REST.)
+M_AGENT = elegir("glm-5-2", "gpt-oss-120b", "meta-llama-3-3-70b-instruct", "qwen3-next-80b-a3b-instruct")
 M_JUDGE = elegir("gpt-5-nano", "gpt-5-4-nano", "claude-haiku-4-5", "gpt-oss-20b", "meta-llama-3-1-8b-instruct")
 M_EMBED = elegir("qwen3-embedding-0-6b", "gte-large-en", "bge-large-en")
 print(f"\nSelección: chat={M_CHAT} · fuerte={M_STRONG} · agente={M_AGENT} · juez={M_JUDGE} · embed={M_EMBED}")
@@ -112,7 +116,11 @@ SERVICES = {
                         if M_CHAT != M_STRONG else [_dest("chat", M_CHAT, 100)], True),
     "uts-agent-gw":    ([_dest("agente", M_AGENT, 80), _dest("chat", M_CHAT, 20)]
                         if M_AGENT != M_CHAT else [_dest("agente", M_AGENT, 100)], True),
-    "uts-aes-judge":   ([_dest("fuerte", M_STRONG, 100)], True),
+    # AES: SIN guardrail block_jailbreak. La redacción del alumno es CONTENIDO A EVALUAR, no una
+    # instrucción; el guardrail da falsos positivos (bloquea redacciones legítimas por su longitud
+    # /forma). La defensa anti-inyección del AES es el detector local `_detect_injection` + la
+    # delimitación del texto en el prompt del juez (que ya instruye a tratarlo como contenido).
+    "uts-aes-judge":   ([_dest("fuerte", M_STRONG, 100)], False),
     "uts-embed-gw":    ([_dest("embed", M_EMBED, 100)], False),
 }
 
