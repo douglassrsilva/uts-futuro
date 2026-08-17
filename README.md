@@ -60,6 +60,11 @@ documentadas y termina con una celda de **verificación** (`assert`/conteos) par
 - Un **SQL Warehouse** serverless (para Metric Views, Genie y el app).
 - **Serverless compute** para notebooks/jobs (recomendado).
 - Para los módulos 09-12: acceso a **Foundation Models**, **Vector Search** y **Databricks Apps**.
+- **Para el "Agente de Investigación" de Genie (Deep Research):** habilita en **Settings → Previews**
+  (admin) las previews **"Agentic responses API"** y **"Deep Research"**. Sin ellas, la Genie
+  Responses API devuelve `FEATURE_DISABLED` y el app usa el **Genie clásico** (respuesta simple,
+  sin razonamiento multi-paso). Verifica con `POST /api/genie/ask`: `"modo":"agent"` = activo;
+  `"modo":"clasico"` = falta habilitarlo.
 
 > Los módulos 00-08 funcionan en cualquier workspace UC. Los 09-12 usan features de IA/Apps que
 > pueden requerir habilitación en tu workspace; cada notebook lo indica y **degrada con gracia**

@@ -14,6 +14,16 @@
 # MAGIC > crearlo desde la **UI** (Genie → New space) apuntando a tus tablas. Aquí intentamos crearlo
 # MAGIC > vía API y, si tu workspace no lo permite, te damos los pasos exactos para la UI + cómo
 # MAGIC > consultarlo una vez que exista.
+# MAGIC
+# MAGIC > ⚠️ **PRERREQUISITO para el "Agente de Investigación" (Deep Research / Agent Mode).**
+# MAGIC > El app UTS ofrece un modo **agéntico** (razonamiento multi-paso + varias consultas SQL +
+# MAGIC > informe). Ese modo usa la **Genie Responses API**, que **debe estar habilitada en el
+# MAGIC > workspace**: requiere activar **"Agentic responses API"** *y* **"Deep Research"** en
+# MAGIC > **Settings → Previews** (permiso de admin; puede no estar disponible en todas las regiones).
+# MAGIC > Si NO está habilitada, la API `/genie/agents/{id}/responses` responde `FEATURE_DISABLED` y
+# MAGIC > el app **cae automáticamente al Genie clásico** (pregunta → SQL → respuesta simple, sin
+# MAGIC > razonamiento multi-paso). Todo funciona igual, pero para ver el **agente de investigación
+# MAGIC > real** hay que habilitar esas dos previews antes del workshop.
 
 # COMMAND ----------
 
@@ -111,7 +121,7 @@ else:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3. Agent Mode (Beta) — investigación multi-paso
+# MAGIC ## 3. Agent Mode (Deep Research) — investigación multi-paso
 # MAGIC
 # MAGIC El app UTS usa el **Agent Mode**, donde Genie razona, ejecuta **varias** consultas y sintetiza
 # MAGIC un informe con citas. La llamada es a `/api/2.0/genie/agents/{space_id}/responses`. El código
@@ -123,6 +133,16 @@ else:
 # MAGIC                    "content": [{"type": "input_text", "text": pregunta}]}], "stream": False}
 # MAGIC w.api_client.do("POST", f"/api/2.0/genie/agents/{space_id}/responses", body=body)
 # MAGIC ```
+# MAGIC
+# MAGIC > ⚠️ **REQUISITO OBLIGATORIO para que el Agent Mode responda.** La **Genie Responses API**
+# MAGIC > debe estar habilitada en el workspace: activa **"Agentic responses API"** y **"Deep
+# MAGIC > Research"** en **Settings → Previews** (admin). Sin eso, la llamada devuelve
+# MAGIC > `FEATURE_DISABLED: Genie Responses API is not enabled for this workspace` y el app usa el
+# MAGIC > Genie clásico (respuesta simple, `modo:"clasico"`, sin pasos ni queries múltiples). Para la
+# MAGIC > demo del **agente de investigación** con informe multi-paso, habilita esas previews antes.
+# MAGIC >
+# MAGIC > Verifica el modo real con: `POST /api/genie/ask` → si `"modo":"agent"` con `pasos`/`queries`,
+# MAGIC > el Deep Research está activo; si `"modo":"clasico"`, aún falta habilitarlo.
 
 # COMMAND ----------
 
