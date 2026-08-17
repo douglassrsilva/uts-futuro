@@ -135,19 +135,38 @@ def sql_conn():
                        access_token=get_oauth_token())
 
 
-def query(sql_text: str, params: dict | None = None):
-    """Ejecuta SQL y devuelve lista de dicts.
-
-    SEGURIDAD: para valores controlados por el usuario usa SIEMPRE consultas parametrizadas
-    (marcadores `:nombre` + dict `params`), nunca f-strings. El databricks-sql-connector
-    hace el binding/escaping del lado del servidor → inmune a inyección SQL (a diferencia de
-    `.replace("'","")`, que deja pasar `\\`, comentarios y comodines LIKE). Los identificadores
-    de catálogo/schema/tabla, que NO son parametrizables, provienen de config, no del usuario.
-    """
+def _run_query(sql_text: str, params: dict | None = None):
     with sql_conn().cursor() as cur:
         cur.execute(sql_text, parameters=params or {})
         cols = [c[0] for c in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+def query(sql_text: str, params: dict | None = None):
+    """Ejecuta SQL y devuelve lista de dicts.
+
+    RESILIENCIA: la conexión al warehouse está cacheada (@lru_cache). Cuando el warehouse
+    serverless se detiene por inactividad (auto-stop), ese socket TCP cacheado MUERE; la
+    siguiente consulta lo reusa y falla con `RequestError: Error during request to server` en
+    vez de abrir una conexión nueva (que dispararía el auto-start). Por eso, si una consulta
+    falla, DESCARTAMOS la conexión cacheada y reintentamos una vez con una conexión fresca:
+    esa reconexión despierta el warehouse y la consulta prospera.
+
+    SEGURIDAD: para valores controlados por el usuario usa SIEMPRE consultas parametrizadas
+    (marcadores `:nombre` + dict `params`), nunca f-strings. El databricks-sql-connector hace
+    el binding/escaping del lado del servidor → inmune a inyección SQL. Los identificadores de
+    catálogo/schema/tabla, que NO son parametrizables, provienen de config, no del usuario.
+    """
+    try:
+        return _run_query(sql_text, params)
+    except Exception:
+        # conexión probablemente muerta (warehouse dormido / socket caído) → reconectar y reintentar
+        try:
+            sql_conn().close()
+        except Exception:
+            pass
+        sql_conn.cache_clear()   # fuerza una conexión nueva (que despierta el warehouse)
+        return _run_query(sql_text, params)
 
 
 def read_volume_file(vol_path: str) -> bytes:
